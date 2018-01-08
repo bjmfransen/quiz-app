@@ -32,7 +32,7 @@ class BaseObject {
   get(field){ 
     return this._data[field]; 
   }
-  _getDotWalk(field){
+  getDotWalk(field){
     //allows for dot-walking into the properties of this._data
     let fields = field.split('.');
     let o = this._data;
@@ -312,6 +312,6 @@ function test(){
   qz.appendRound(r1).appendRound(r2);
 
   console.log('======\n'+qz)
-  console.log(q2._getDotWalk('languages.nl.text'))
+  console.log(q2.getDotWalk('languages.nl.text'))
 
 }
