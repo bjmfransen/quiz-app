@@ -29,6 +29,19 @@ class BaseObject {
     this._data[field] = value;
     return this; 
   }
+  setDotWalk(field, value){
+    let fields = field.split('.');
+    let o = this._data;
+    let property;
+    
+    while ((property = fields.shift()) && typeof o[property] == 'object'){
+      o = o[property];
+    }
+
+    o[property] = value;
+   
+    return o;
+  }
   get(field){ 
     return this._data[field]; 
   }
@@ -311,7 +324,9 @@ function test(){
   const qz = new Quiz('BJ0001');
   qz.appendRound(r1).appendRound(r2);
 
-  console.log('======\n'+qz)
+  q2.setDotWalk('languages.nl.text', 'QQQ')
   console.log(q2.getDotWalk('languages.nl.text'))
+  console.log('======\n'+qz)
 
 }
+
