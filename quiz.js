@@ -1,3 +1,4 @@
+//QuizJS v0.1 - es6
 class BaseObject {
   constructor(){
     this._data = {};
@@ -29,36 +30,22 @@ class BaseObject {
     this._data[field] = value;
     return this; 
   }
-  setDotWalk(field, value){
-    let fields = field.split('.');
-    let o = this._data;
-    let property;
-    
-    while ((property = fields.shift()) && typeof o[property] == 'object'){
-      o = o[property];
+  get(field){ 
+    let defaultValue;
+
+    switch (field){
+      case 'rounds':
+      case 'roundIds':
+        defaultValue = [];
+        break;
     }
 
-    o[property] = value;
-   
-    return o;
+    return this._data[field] || defaultValue;
   }
-  get(field){ 
-    return this._data[field]; 
-  }
-  getDotWalk(field){
-    //allows for dot-walking into the properties of this._data
-    let fields = field.split('.');
-    let o = this._data;
-    let property;
-    
-    while ((property = fields.shift())){
-      o = o[property];
-      if (typeof o != 'object'){
-        return o;
-      }
-    }
-    
-    return;
+  getValues(fields){
+    return fields.map(field => {
+      return this.get(field);
+    })
   }
 }
 
@@ -135,7 +122,6 @@ class Round extends BaseObject {
   }
   
   appendQuestion(Qn){
-    console.log('appendQuestion', Qn)
     this._data.questions.push(Qn);
     return this;
   }
@@ -265,68 +251,8 @@ const setQuestion = (field, value, language, languages) => {
   return this;
 }
 
-// export {
-//   Quiz,
-//   Round,
-//   Question
-// }
-
-test();
-function test(){
-  const q1 = new Question();
-  q1
-    .set('text', 'What is the capital of Rwanda?', 'en')
-    .set('answer', 'Kigali', 'en')
-    .set('label', 'Capital', 'en')
-    .set('text', 'Wat is de hoofdstad van Rwanda?', 'nl')
-    .set('answer', 'Kigali', 'nl')
-    .set('label', 'Hoofdstad', 'nl')
-    .set('difficulty', 2)
-    .set('category', 'Geography');
-  const q2 = new Question();
-  q2
-    .set('text', 'What is the longest mountain range on earth?', 'en')
-    .set('answer', 'Andes', 'en')
-    .set('label', 'Mountain range', 'en')
-    .set('text', 'Wat is de langste bergketen ter wereld?', 'nl')
-    .set('answer', 'Andes', 'nl')
-    .set('label', 'Bergketen', 'nl')
-    .set('difficulty', 1)
-    .set('category', 'Geography');
-  const q3 = new Question();
-  q3
-    .set('text', 'Who wrote Patsy Cline\'s Crazy?', 'en')
-    .set('answer', 'Willie Nelson', 'en')
-    .set('label', 'Name', 'en')
-    .set('text', 'Wie schreef Patsy Cline\'s Crazy?', 'nl')
-    .set('answer', 'Willie Nelson', 'nl')
-    .set('label', 'Naam', 'nl')
-    .set('difficulty', 3)
-    .set('category', 'Music');
-  const q4 = new Question();
-  q4
-    .set('text', 'Whose first solo album was titled Tubular Bells?', 'en')
-    .set('answer', 'Mike Oldfield', 'en')
-    .set('label', 'Name', 'en')
-    .set('text', 'Wie debuteerde met Tubular Bells?', 'nl')
-    .set('answer', 'Mike Oldfield', 'nl')
-    .set('label', 'Naam', 'nl')
-    .set('difficulty', 2)
-    .set('category', 'Music');
-  const r1 = new Round();
-  r1.set('name', 'Ronde 1').set('category', 'Geography');
-  r1.appendQuestion(q1).appendQuestion(q2)
-
-  const r2 = new Round();
-  r2.set('name', 'Ronde 2').set('category', 'Music');
-  r2.appendQuestion(q3).appendQuestion(q4)
-
-  const qz = new Quiz('BJ0001');
-  qz.appendRound(r1).appendRound(r2);
-
-  q2.setDotWalk('languages.nl.text', 'QQQ')
-  console.log(q2.getDotWalk('languages.nl.text'))
-  console.log('======\n'+qz)
-
+export {
+  Quiz,
+  Round,
+  Question
 }
-
