@@ -1,16 +1,40 @@
 //QuizJS v0.1 - es6
+// Detect Node.js
+const NODEJS = ( typeof module !== 'undefined' && module.exports );
+
 class BaseObject {
-  constructor(){
-    this._data = {};
+  /*
+   *  BaseObject - base for Quiz, Round, Question
+   */
+  constructor(){  
+    this._data = {};    //set up empty data structure
     return this;
   }
   
   loadJSON(json){
+  /*
+   *  Loads json data structure and adds to this._data
+   *  Existing properties will be overwritten
+   */  
     Object.assign(this._data, json);
     return this;
   }
+
+  toJSON(){
+  /*
+   *  Exports json this._data
+   */
+    return this._data;
+  }
   
-  slice(...fields){ //convert the arguments to an array named fields
+  toString(){
+    return JSON.stringify(this.toJSON());
+  }
+  
+  slice(...fields){ 
+  /*
+   * Convert the arguments to an array named fields
+   */
     const result = {};
 
     //if fields was already an array, it is now stored as the first element of an array
@@ -25,29 +49,69 @@ class BaseObject {
     return result;
   }
   
-  set(field, value){ 
-    // console.log('super', field, value)
+  setValue(field, value){ 
+  /*
+   *  Finds property field, and sets its value in this._data
+   *  If the property does not exist, it is created, 
+   *  otherwise it is overwritten.
+   */
     this._data[field] = value;
     return this; 
   }
-  get(field){ 
-    let defaultValue;
+  setValueDotWalk(field, value){
+  /*
+   *  Field can contain dots.
+   */
+    const fields = field.split('.');
+    const lastField = fields.pop();
+    let o = this._data;
+    let prop;
 
-    switch (field){
-      case 'rounds':
-      case 'roundIds':
-        defaultValue = [];
-        break;
+    while ((prop = fields.shift())){
+      if (typeof o[prop] != 'object'){
+        o[prop] = {}
+      }
+      o = o[prop];
     }
-
-    return this._data[field] || defaultValue;
+    o[lastField] = value;
+    
+    return this;
+  }
+  getValue(field){ 
+  /*
+   *  Finds the property field and returns its value
+   *  If the property does not exist, undefined is returned
+   */
+    return this._data[field];
+  }
+  getValueDotWalk(field){
+  /*
+   *  Field can contain dots to access object properties
+   */
+    let o = this._data;
+    let result = this._data;
+    
+    field.split('.').forEach(fld => {
+      if (typeof result === 'object'){
+        result = result[fld];
+      }
+    })
+    
+    return result;
   }
   getValues(fields){
+  /*
+   *  Fields is an array of property names
+   *  getValue is called for each property in fields,
+   *  an array containing the returned values is returned
+   */
     return fields.map(field => {
-      return this.get(field);
+      return this.getValue(field);
     })
   }
 }
+
+
 
 class Quiz extends BaseObject {
   constructor(name){
@@ -81,7 +145,7 @@ class Quiz extends BaseObject {
     return this;
   }
   
-  set(field, value){
+  setValue(field, value){
     switch (field){
       case 'name':
       case 'description':
@@ -94,7 +158,7 @@ class Quiz extends BaseObject {
   toArray(){
     var result = [];
     
-    result.push(`Name: ${this.get('name')}`);
+    result.push(`Name: ${this.getValue('name')}`);
     this.eachRound(round => {
       result = result.concat(round.toArray())
     })
@@ -103,6 +167,15 @@ class Quiz extends BaseObject {
   
   toString(){
     return this.toArray().join('\n')
+  }
+
+  toJSON(){
+    var result = Object.assign({}, this._data);
+    result.rounds = result.rounds.map(round => {
+      return round.toJSON();
+    })
+
+    return result;
   }
 }
 
@@ -131,22 +204,22 @@ class Round extends BaseObject {
     return this;
   }
    
-  get(field){
+  getValue(field){
     switch (field){
       case 'caption':       
         return getCaption(this);
       default:
-        return super.get(field);
+        return super.getValue(field);
     }
     
     return;
   }
   
-  set(field, value){
+  setValue(field, value){
     switch (field){
       case 'name':
       case 'category':
-        super.set(field, value);
+        super.setValue(field, value);
       default:
         return this;
     }
@@ -163,7 +236,7 @@ class Round extends BaseObject {
   
   toArray(){
     var result = [];
-    result.push(`Name ${this.get('name')} - ${this.get('category')} [${this._data.questions.length}]`);
+    result.push(`Name ${this.getValue('name')} - ${this.getValue('category')} [${this._data.questions.length}]`);
     this.eachQuestion(q => {
       result = result.concat(q.toArray())
     })
@@ -174,11 +247,18 @@ class Round extends BaseObject {
   toString(){
     return this.toArray().join('\n');
   }
+
+  toJSON(){
+    var result = Object.assign({}, this._data);
+    result.questions = result.questions.map(question => {
+      return question.toJSON();
+    })
+  }
 }
 
 //Round helper functions
 const getCaption = (round) => {
-  return this.get('name');
+  return this.getValue('name');
 }
 
 class Question extends BaseObject {
@@ -187,7 +267,7 @@ class Question extends BaseObject {
     this._data.languages = {}
   }
   
-  get(field, language){
+  getValue(field, language){
     switch (field){
       case 'text':    
       case 'answer':  
@@ -196,11 +276,11 @@ class Question extends BaseObject {
       case 'question': 
         return this._data.languages[language]
       default:
-        return super.get(field)
+        return super.getValue(field)
     }
   }
   
-  set(field, value, language){
+  setValue(field, value, language){
     switch (field){
       case 'text': 
       case 'answer':  
@@ -212,7 +292,7 @@ class Question extends BaseObject {
       //use fallthrough for default case; handle only the present values
       case 'difficulty':
       case 'category':
-        return super.set(field, value);
+        return super.setValue(field, value);
         
       //if the field-value is not a valid option, do nothing and return the object
       default:
@@ -224,10 +304,10 @@ class Question extends BaseObject {
     let result = [];
     for (let lng in this._data.languages){
       result.push(lng+':');
-      result.push(`Q: ${this.get('text', lng)}`)
-      result.push(`A: ${this.get('answer', lng)}`)
-      result.push(`L: ${this.get('label', lng)}`)
-      result.push(`Diff: ${this.get('difficulty')}, cat: ${this.get('category')}`)
+      result.push(`Q: ${this.getValue('text', lng)}`)
+      result.push(`A: ${this.getValue('answer', lng)}`)
+      result.push(`L: ${this.getValue('label', lng)}`)
+      result.push(`Diff: ${this.getValue('difficulty')}, cat: ${this.getValue('category')}`)
     }
     
     return result;
@@ -251,8 +331,16 @@ const setQuestion = (field, value, language, languages) => {
   return this;
 }
 
-export {
-  Quiz,
-  Round,
-  Question
-}
+if (NODEJS){
+  // Load depdendencies
+  // const fs = require("fs");
+  // const JSZip = require("jszip");
+  // const sizeOf = require("image-size");
+
+  // Export module
+  module.exports = {
+    Quiz,
+    Round,
+    Question
+  }
+};
