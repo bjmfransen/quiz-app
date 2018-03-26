@@ -16,7 +16,10 @@ class BaseObject {
    *  Loads json data structure and adds to this._data
    *  Existing properties will be overwritten
    */  
-    Object.assign(this._data, json);
+    for (let prop in json){
+      this._data[prop] = json[prop];
+    }
+
     return this;
   }
 
@@ -111,8 +114,6 @@ class BaseObject {
   }
 }
 
-
-
 class Quiz extends BaseObject {
   constructor(name){
     super();
@@ -134,6 +135,7 @@ class Quiz extends BaseObject {
   }
   
   appendRound(round){
+    round.setLanguage(this.language);
     this._data.rounds.push(round);
     
     return this;
@@ -145,37 +147,44 @@ class Quiz extends BaseObject {
     return this;
   }
   
-  setValue(field, value){
-    switch (field){
-      case 'name':
-      case 'description':
-        this._data[field] = value;
-    }
-    
-    return this;
-  }
-  
-  toArray(){
-    var result = [];
-    
-    result.push(`Name: ${this.getValue('name')}`);
+  setLanguage(language){
+    this.language = language;
     this.eachRound(round => {
-      result = result.concat(round.toArray())
+      round.setLanguage(language);
     })
-    return result;
-  }
-  
-  toString(){
-    return this.toArray().join('\n')
+
+    return this;
   }
 
   toJSON(){
-    var result = Object.assign({}, this._data);
-    result.rounds = result.rounds.map(round => {
-      return round.toJSON();
-    })
+    let prop;
+    let result = {};
+
+    for (prop in this._data){
+      if (prop === 'rounds'){
+        result.rounds = this._data.rounds.map(round => {
+          return round.toJSON();
+        })        
+      } else {
+        result[prop] = this._data[prop]
+      }
+    }
 
     return result;
+  }
+
+  loadJSON(json){
+    for (let prop in json){
+      if (prop === 'rounds'){
+        this._data.rounds = json.rounds.map(round => {
+          return new Round().loadJSON(round);
+        })
+      } else {
+        this._data[prop] = json[prop];
+      }
+    }
+
+    return this;
   }
 }
 
@@ -186,16 +195,10 @@ class Round extends BaseObject {
     return this;
   }
   
-  expand(){//should't this go into QuizMeteor? - creating Questions by id only makes sense in a Mongo context
-    this._data.questionIds = this._data.questions.map(questionId => {
-      return new Question(questionId)
-    })
-    
-    return this;
-  }
-  
-  appendQuestion(Qn){
-    this._data.questions.push(Qn);
+  appendQuestion(question){
+    question.setLanguage(this.language);
+    this._data.questions.push(question);
+
     return this;
   }
   
@@ -203,11 +206,20 @@ class Round extends BaseObject {
     this._data.questions.forEach(fn);
     return this;
   }
-   
+
+  setLanguage(language){
+    this.language = language;
+    this.eachQuestion(question => {
+      question.setLanguage(language);
+    })
+
+    return this;
+  }
+
   getValue(field){
     switch (field){
       case 'caption':       
-        return getCaption(this);
+        return this._getCaption(this);
       default:
         return super.getValue(field);
     }
@@ -234,31 +246,40 @@ class Round extends BaseObject {
     }
   }
   
-  toArray(){
-    var result = [];
-    result.push(`Name ${this.getValue('name')} - ${this.getValue('category')} [${this._data.questions.length}]`);
-    this.eachQuestion(q => {
-      result = result.concat(q.toArray())
-    })
+  toJSON(){
+    let prop;
+    let result = {};
+
+    for (prop in this._data){
+      if (prop === 'questions'){
+        result.questions = this._data.questions.map(question => {
+          return question.toJSON();
+        })        
+      } else {
+        result[prop] = this._data[prop]
+      }
+    }
 
     return result;
   }
-  
-  toString(){
-    return this.toArray().join('\n');
+
+  loadJSON(json){
+    for (let prop in json){
+      if (prop === 'questions'){
+        this._data.questions = json.questions.map(question => {
+          return new Question().loadJSON(question);
+        })
+      } else {
+        this._data[prop] = json[prop];
+      }
+    }
+
+    return this;
   }
 
-  toJSON(){
-    var result = Object.assign({}, this._data);
-    result.questions = result.questions.map(question => {
-      return question.toJSON();
-    })
+  _getCaption() {
+    return this.getValue('name');
   }
-}
-
-//Round helper functions
-const getCaption = (round) => {
-  return this.getValue('name');
 }
 
 class Question extends BaseObject {
@@ -267,14 +288,14 @@ class Question extends BaseObject {
     this._data.languages = {}
   }
   
-  getValue(field, language){
+  getValue(field){
     switch (field){
       case 'text':    
       case 'answer':  
       case 'label':   
-        return this._data.languages[language][field]
+        return this._data.languages[this.language][field]
       case 'question': 
-        return this._data.languages[language]
+        return this._data.languages[this.language]
       default:
         return super.getValue(field)
     }
@@ -286,7 +307,7 @@ class Question extends BaseObject {
       case 'answer':  
       case 'label':   
       case 'question':
-        setQuestion(field, value, language, this._data.languages);
+        this._setQuestion(field, value, language, this._data.languages);
         return this;
         
       //use fallthrough for default case; handle only the present values
@@ -299,48 +320,20 @@ class Question extends BaseObject {
         return this;
     }
   }
-  
-  toArray(){
-    let result = [];
-    for (let lng in this._data.languages){
-      result.push(lng+':');
-      result.push(`Q: ${this.getValue('text', lng)}`)
-      result.push(`A: ${this.getValue('answer', lng)}`)
-      result.push(`L: ${this.getValue('label', lng)}`)
-      result.push(`Diff: ${this.getValue('difficulty')}, cat: ${this.getValue('category')}`)
+
+  setLanguage(language){
+    this.language = language;
+  }
+
+  _setQuestion(field, value, language, languages){
+    if (typeof languages[language] === 'undefined'){
+      languages[language] = {}
     }
     
-    return result;
-  }
-  
-  toString(){
-    return this.toArray().join('\n');
+    if (field == 'text' || field == 'answer' || field == 'label'){
+      languages[language][field] = value;    
+    }
+    
+    return this;
   }
 }
-
-//Question helper functions
-const setQuestion = (field, value, language, languages) => {
-  if (typeof languages[language] === 'undefined'){
-    languages[language] = {}
-  }
-  
-  if (field == 'text' || field == 'answer' || field == 'label'){
-    languages[language][field] = value;    
-  }
-  
-  return this;
-}
-
-if (NODEJS){
-  // Load depdendencies
-  // const fs = require("fs");
-  // const JSZip = require("jszip");
-  // const sizeOf = require("image-size");
-
-  // Export module
-  module.exports = {
-    Quiz,
-    Round,
-    Question
-  }
-};
