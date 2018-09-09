@@ -337,3 +337,17 @@ class Question extends BaseObject {
     return this;
   }
 }
+
+if (NODEJS){
+  // Load depdendencies
+  // const fs = require("fs");
+  // const JSZip = require("jszip");
+  // const sizeOf = require("image-size");
+
+  // Export module
+  module.exports = {
+    Quiz,
+    Round,
+    Question
+  }
+};
